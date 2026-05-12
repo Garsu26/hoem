@@ -1,0 +1,70 @@
+name: CI — pantry-service
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'pantry-service/**'
+      - '.github/workflows/ci-pantry.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'pantry-service/**'
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: hoem_test
+          POSTGRES_USER: hoem
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if source exists
+        id: check
+        run: |
+          if [ -d "pantry-service/src/main/java" ]; then
+            echo "has_source=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_source=false" >> $GITHUB_OUTPUT
+            echo "No source code yet — skipping build"
+          fi
+
+      - name: Set up Java 21
+        if: steps.check.outputs.has_source == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run tests
+        if: steps.check.outputs.has_source == 'true'
+        working-directory: pantry-service
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/hoem_test?currentSchema=pantry
+          SPRING_DATASOURCE_USERNAME: hoem
+          SPRING_DATASOURCE_PASSWORD: test
+        run: mvn verify --no-transfer-progress
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: failure() && steps.check.outputs.has_source == 'true'
+        with:
+          name: pantry-service-test-report
+          path: pantry-service/target/surefire-reports/

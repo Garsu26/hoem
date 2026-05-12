@@ -1,0 +1,59 @@
+version: '3.9'
+
+# =============================================================================
+# HOEM — docker-compose.dev.yml
+# Development overrides — use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Differences from production:
+#   - Services expose their ports for direct debugging
+#   - Spring Boot runs with devtools (hot reload via volume mount)
+#   - No Cloudflare tunnel (access via localhost directly)
+# =============================================================================
+
+services:
+
+  auth-service:
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  pantry-service:
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  shopping-service:
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  tasks-service:
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  menu-service:
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  energy-service:
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  notification-service:
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+  # Disable Cloudflare tunnel in dev — access via localhost
+  cloudflared:
+    profiles:
+      - production
