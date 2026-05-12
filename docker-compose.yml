@@ -1,0 +1,219 @@
+version: '3.9'
+
+# =============================================================================
+# HOEM — docker-compose.yml
+# Production configuration
+# Usage: docker-compose up -d
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgresql:
+    image: postgres:16-alpine
+    container_name: hoem-postgres
+    environment:
+      POSTGRES_DB: hoem
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-schemas.sql:/docker-entrypoint-initdb.d/01-init-schemas.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d hoem"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # API Gateway
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: hoem-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PANTRY_SERVICE_URL: http://pantry-service:8082
+      SHOPPING_SERVICE_URL: http://shopping-service:8083
+      TASKS_SERVICE_URL: http://tasks-service:8084
+      MENU_SERVICE_URL: http://menu-service:8085
+      ENERGY_SERVICE_URL: http://energy-service:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      JAVA_OPTS: -Xmx200m -Xms100m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Auth Service
+  # ---------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: hoem-auth
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=auth
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Pantry Service
+  # ---------------------------------------------------------------------------
+  pantry-service:
+    build:
+      context: ./pantry-service
+      dockerfile: Dockerfile
+    container_name: hoem-pantry
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=pantry
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Shopping Service
+  # ---------------------------------------------------------------------------
+  shopping-service:
+    build:
+      context: ./shopping-service
+      dockerfile: Dockerfile
+    container_name: hoem-shopping
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=shopping
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Tasks Service
+  # ---------------------------------------------------------------------------
+  tasks-service:
+    build:
+      context: ./tasks-service
+      dockerfile: Dockerfile
+    container_name: hoem-tasks
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=tasks
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Menu Service
+  # ---------------------------------------------------------------------------
+  menu-service:
+    build:
+      context: ./menu-service
+      dockerfile: Dockerfile
+    container_name: hoem-menu
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=menu
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Energy Service
+  # ---------------------------------------------------------------------------
+  energy-service:
+    build:
+      context: ./energy-service
+      dockerfile: Dockerfile
+    container_name: hoem-energy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=energy
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      ESIOS_TOKEN: ${ESIOS_TOKEN}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Notification Service
+  # ---------------------------------------------------------------------------
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: hoem-notifications
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=notifications
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      JAVA_OPTS: -Xmx128m -Xms64m
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Frontend
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hoem-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: hoem-tunnel
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api-gateway
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: hoem-postgres-data
