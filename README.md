@@ -89,6 +89,12 @@ All documentation lives in the [`docs/`](./docs/) folder:
 ## Contributing
  
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch strategy and PR process.
+
+## AI assistance
+
+This project was developed with the assistance of Claude (Anthropic) 
+for documentation and code generation.
+All decisions were reviewed and validated by the developer.
  
 ## License
  
