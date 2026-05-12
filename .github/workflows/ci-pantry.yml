@@ -35,7 +35,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check if source exists
+        id: check
+        run: |
+          if [ -d "pantry-service/src/main/java" ]; then
+            echo "has_source=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_source=false" >> $GITHUB_OUTPUT
+            echo "No source code yet — skipping build"
+          fi
+
       - name: Set up Java 21
+        if: steps.check.outputs.has_source == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -43,6 +54,7 @@ jobs:
           cache: maven
 
       - name: Run tests
+        if: steps.check.outputs.has_source == 'true'
         working-directory: pantry-service
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/hoem_test?currentSchema=pantry
@@ -52,7 +64,7 @@ jobs:
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: failure() && steps.check.outputs.has_source == 'true'
         with:
           name: pantry-service-test-report
           path: pantry-service/target/surefire-reports/

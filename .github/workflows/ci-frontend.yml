@@ -41,7 +41,7 @@ jobs:
 
       - name: Run tests
         working-directory: frontend
-        run: npm test -- --run
+        run: npm test -- --run --passWithNoTests
 
       - name: Build
         working-directory: frontend
