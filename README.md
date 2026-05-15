@@ -88,7 +88,7 @@ All documentation lives in the [`docs/`](./docs/) folder:
  
 ## Contributing
  
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch strategy and PR process.
+See [CONTRIBUTING.md](.claude/CONTRIBUTING.md) for commit conventions, branch strategy and PR process.
 
 ## AI assistance
 
