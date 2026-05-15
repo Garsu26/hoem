@@ -165,6 +165,8 @@ Scopes: `auth`, `pantry`, `shopping`, `tasks`, `menu`, `energy`, `notifications`
 
 ## 8. Current State — What is Done
 
+### Documentation & infrastructure (unchanged)
+
 | Item | Status |
 |---|---|
 | Vision document | ✅ `docs/00_vision.md` |
@@ -177,24 +179,75 @@ Scopes: `auth`, `pantry`, `shopping`, `tasks`, `menu`, `energy`, `notifications`
 | C4 Architecture (levels 1–3) | ✅ `docs/08_c4_architecture.md` |
 | 15 ADRs | ✅ `docs/09_adr.md` |
 | Data model (7 schemas, 33 tables, Flyway V1) | ✅ `docs/10_data_model.md` |
-| Repository structure | ✅ github.com/Garsu26/hoem — branch `develop` |
+| Repository structure | ✅ github.com/Garsu26/hoem |
 | docker-compose.yml | ✅ all 10 containers defined |
 | Dockerfiles (all services) | ✅ multi-stage Java + frontend Nginx |
-| pom.xml templates (all services) | ✅ Spring Boot 3.3, Java 21, Flyway, ArchUnit, Testcontainers |
-| GitHub Actions CI (auth, pantry, frontend) | ✅ triggers on path changes |
-| GitHub issue templates | ✅ bug, feature, task |
-| PR template | ✅ |
-| .env.example | ✅ |
-| .gitattributes | ✅ `* text=auto eol=lf` |
-| Figma mockup (web) | ✅ exists externally — not in repo |
+| pom.xml (all services) | ✅ Spring Boot 3.3, Java 21, all base deps |
+| GitHub Actions CI | ✅ auth, pantry, frontend workflows |
+| GitHub issue/PR templates | ✅ |
 
-**What does NOT exist yet (no source code written):**
-- No Java source files in any service
-- No React source files in frontend
-- No `application.yml` in any service
-- No `ArchitectureTest.java` in any service
-- No Flyway `V1__init.sql` copied to service directories yet
-- Docker containers cannot build yet (no source to compile)
+### auth-service — Sprint 1 in progress (branch: `feat/auth-user-registration`)
+
+**✅ Implemented — US-CORE-001 / FR-CORE-001 (2026-05-15, `mvn verify` green)**
+
+`POST /api/v1/auth/register` — full hexagonal implementation:
+
+```
+auth-service/src/main/java/dev/hoem/auth/
+├── AuthServiceApplication.java
+├── controller/
+│   ├── AuthController.java              POST /api/v1/auth/register → 201
+│   ├── GlobalExceptionHandler.java      409 EMAIL_ALREADY_EXISTS · 400 PASSWORD_TOO_SHORT
+│   └── dto/  RegisterRequest · RegisterResponse · ErrorResponse
+├── application/
+│   ├── command/  RegisterUserCommand
+│   ├── result/   RegisterUserResult
+│   ├── usecase/  RegisterUserUseCase
+│   └── service/  RegisterUserService    orchestrates domain + ports
+├── domain/
+│   ├── model/    User · VerificationToken
+│   ├── port/     UserRepository · VerificationTokenRepository · EmailService · PasswordHasher
+│   └── exception/ EmailAlreadyExistsException
+└── infrastructure/
+    ├── persistence/  UserJpaEntity · VerificationTokenJpaEntity
+    │                 UserJpaRepository · VerificationTokenJpaRepository (package-private)
+    │                 UserRepositoryAdapter · VerificationTokenRepositoryAdapter
+    ├── external/     ResendEmailServiceAdapter  (sends verification link to {APP_BASE_URL}/verify?token=)
+    └── config/       AuthConfig (BCrypt cost 12 bean + PasswordHasher bean)
+                      RateLimitFilter (Bucket4j — 10 req/min per IP on POST /api/v1/auth/register)
+
+auth-service/src/main/resources/
+├── application.yml                      (already existed — port 8081, currentSchema=auth)
+└── db/migration/V1__init.sql            (already existed — all 7 auth tables)
+
+auth-service/src/test/java/dev/hoem/auth/
+├── ArchitectureTest.java                domain cannot import Spring/JPA/Hibernate
+├── application/service/RegisterUserServiceTest.java   (Mockito unit tests)
+└── controller/AuthControllerIT.java     (WebMvcTest slice — 201/409/400 scenarios)
+```
+
+**Dependencies added to auth-service/pom.xml:**
+- `org.springframework.security:spring-security-crypto` — BCrypt (no full Security framework)
+- `com.resend:resend-java:3.1.0` — Resend email SDK
+- `com.bucket4j:bucket4j-core:8.10.1` — token-bucket rate limiting
+
+**Key implementation decisions made (follow these patterns in future issues):**
+- `RegisterRequest` uses `@Size(min=8)` on `password` field; `GlobalExceptionHandler` inspects field errors to return `PASSWORD_TOO_SHORT` vs generic `VALIDATION_ERROR`
+- `PasswordHasher` is a domain port (interface in `domain/port/`), implemented in `infrastructure/config/AuthConfig` as an anonymous bean — keeps BCrypt out of domain
+- `UserJpaRepository` and `VerificationTokenJpaRepository` are **package-private** — external code only sees the adapter
+- `RateLimitFilter` reads `X-Forwarded-For` first, falls back to `remoteAddr`
+- `ErrorResponse` is a simple record `{code, message}` — not RFC 9457 ProblemDetail (intentional for now)
+
+**What is NOT yet in auth-service (pending issues):**
+- Login (`POST /api/v1/auth/login`) + JWT access token issuance
+- JWT refresh token (`POST /api/v1/auth/refresh`)
+- Email verification (`GET /api/v1/auth/verify`)
+- Household creation (`POST /api/v1/households`)
+- Join request flow (`POST/PATCH /api/v1/households/{id}/join-requests`)
+- Members endpoint (`GET /api/v1/households/{id}/members`)
+- Password reset flow
+
+**No source code exists yet in:** api-gateway, pantry-service, shopping-service, tasks-service, menu-service, energy-service, notification-service, frontend.
 
 ---
 
@@ -204,40 +257,49 @@ Scopes: `auth`, `pantry`, `shopping`, `tasks`, `menu`, `energy`, `notifications`
 
 ### Sprint 1 order (strict — each unblocks the next)
 
-**Step 1 — `auth-service`** (blocks everything else)
-Create full Spring Boot project structure:
-- `dev.hoem.auth` package with hexagonal layers
-- Domain: `User`, `Household`, `Membership` entities
-- Application: `RegisterUseCase`, `LoginUseCase`, `CreateHouseholdUseCase`, `JoinHouseholdUseCase`
-- Infrastructure: JPA repositories, Flyway `V1__init.sql` (copy from `docs/10_data_model.md` — auth schema section)
-- Controller: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/households`, `POST /api/v1/households/{id}/join-requests`, `PATCH /api/v1/households/{id}/join-requests/{requestId}`
-- JWT: issue access token (1h) + refresh token (30d, stored in `auth.sessions`)
-- BCrypt cost 12 for password hashing
-- `ArchitectureTest.java` enforcing hexagonal rules
-- `application.yml` with `currentSchema=auth`
+**Step 1 — `auth-service`** 🔄 In progress
 
-**Step 2 — `api-gateway`** (needed to test auth from frontend)
-- Spring Cloud Gateway routing config
-- JWT validation filter using shared public key
-- Inject `X-User-Id` and `X-Household-Id` headers after validation
-- CORS configuration for `http://localhost:3000`
-- Routes to all 8 services (even if not running yet — gateway should start without them)
+- ✅ `POST /api/v1/auth/register` — user registration with email verification
+- ⬜ `POST /api/v1/auth/login` — credentials validation, issue JWT access token (1h) + refresh token (30d stored in `auth.sessions`)
+- ⬜ `POST /api/v1/auth/refresh` — rotate refresh token, issue new access token
+- ⬜ `GET /api/v1/auth/verify` — consume `auth.verification_tokens`, set `users.verified = true`
+- ⬜ `POST /api/v1/households` — create household + first membership (role = admin)
+- ⬜ `POST /api/v1/households/{id}/join-requests` — user submits 6-char invite code
+- ⬜ `PATCH /api/v1/households/{id}/join-requests/{requestId}` — admin approves/rejects
+- ⬜ `GET /api/v1/households/{id}/members` — list members with color map
 
-**Step 3 — `pantry-service`** (first functional module)
+**JWT notes for login issue:** `JWT_SECRET` is shared between auth-service and api-gateway. auth-service signs the token; api-gateway validates it. Use `io.jsonwebtoken:jjwt-*` (add to pom.xml) or `com.nimbusds:nimbus-jose-jwt`. Token payload must include `sub` (userId), `householdId`, and `exp`.
+
+---
+
+**Step 2 — `api-gateway`** (blocked until login + JWT are done)
+- Spring Cloud Gateway routing — routes all `/api/v1/**` to the right service by prefix
+- `JwtAuthenticationFilter` — validates JWT locally using `JWT_SECRET`, rejects 401 if invalid/expired
+- Injects `X-User-Id` and `X-Household-Id` headers into downstream request after validation
+- Whitelist (no JWT required): `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `GET /api/v1/auth/verify`
+- CORS for `http://localhost:3000`
+- No `src/main/java` exists yet — start from scratch following same hexagonal layout (filter in `infrastructure/`)
+
+---
+
+**Step 3 — `pantry-service`** (blocked until api-gateway is done)
 - Domain: `Product`, `Category`
-- Application: `AddProductUseCase`, `UpdateProductUseCase`, `GetPantryUseCase`
-- Feign client to `auth-service` for household validation (with Resilience4j fallback)
-- Controller: full CRUD `/api/v1/pantry`
-- Flyway `V1__init.sql` (pantry schema from `docs/10_data_model.md`)
+- Application: `AddProductUseCase`, `UpdateProductUseCase`, `GetPantryUseCase`, `DeleteProductUseCase`
+- Controller reads `X-Household-Id` header (never JWT) — standard for all services
+- Feign client to auth-service for member validation (with `@FallbackFactory`)
+- Full CRUD: `GET/POST /api/v1/pantry/products`, `PUT/DELETE /api/v1/pantry/products/{id}`
+- Flyway `V1__init.sql` — pantry schema from `docs/10_data_model.md`
 
-**Step 4 — Frontend shell**
+---
+
+**Step 4 — Frontend shell** (blocked until api-gateway is done)
 - Vite + React 19 project init
 - React Router v6 with all routes from `docs/04_information_architecture.md`
-- Zustand stores: `useAuthStore`, `useHouseholdStore`
-- TanStack Query setup
-- Basic authenticated layout with sidebar/bottom nav (6 modules)
-- Auth pages: login, register, onboarding flow
-- Pantry page: product list + add product form (connected to real API)
+- Zustand stores: `useAuthStore` (tokens, user), `useHouseholdStore` (active household, members color map)
+- TanStack Query for all server state
+- Authenticated layout with sidebar/bottom nav
+- Auth pages: register, login, email verification, household onboarding
+- Pantry page connected to real API
 
 ---
 
@@ -331,4 +393,5 @@ The `V1__init.sql` for each service is in `docs/10_data_model.md` — each schem
 
 ---
 
-*Generated: 2026-05-12 — end of planning phase, beginning of Sprint 1*
+*Created: 2026-05-12 — end of planning phase*  
+*Updated: 2026-05-15 — auth-service registration complete, Sprint 1 in progress*

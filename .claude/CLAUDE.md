@@ -192,25 +192,34 @@ refactor(energy): extract price band calculation to domain service
 
 **Goal:** auth-service working + pantry-service basic CRUD + frontend shell
 
-### What exists (structure only — no source code yet)
+### Build order for Sprint 1 (strict)
+1. ~~`auth-service`~~ ✅ Done — 2026-05-15
+2. `api-gateway` — needed to test auth from frontend  ← **next**
+3. `pantry-service` — first functional module
+4. Frontend shell — routing, auth pages, pantry page connected to real API
+
+### What exists
+
+**Infrastructure (all services):**
 - `docker-compose.yml` with all 10 containers defined
-- `Dockerfile` in every service directory (multi-stage, no source to compile yet)
-- `pom.xml` in every service directory (Spring Boot 3.3, Java 21, all dependencies)
+- `Dockerfile` in every service directory (multi-stage)
+- `pom.xml` in every service directory (Spring Boot 3.3, Java 21)
 - `docs/` with all 10 project documents
 - `scripts/init-schemas.sql` and `scripts/seed-data.sql`
 
-### What does NOT exist yet
-- No Java source files anywhere
-- No `application.yml` in any service
-- No `ArchitectureTest.java` in any service
-- No Flyway `V1__init.sql` copied to service directories
-- No React source files
+**auth-service — fully implemented:**
+- `POST /api/v1/auth/register` → 201, 409 `EMAIL_ALREADY_EXISTS`, 400 `PASSWORD_TOO_SHORT`
+- BCrypt cost 12 (`spring-security-crypto`), verification email via Resend SDK (`resend-java:3.1.0`)
+- Rate limiting 10 req/min per IP via Bucket4j (`bucket4j-core:8.10.1`)
+- Hexagonal architecture: `domain/` (User, VerificationToken, ports, exception), `application/` (RegisterUserService), `controller/` (AuthController, GlobalExceptionHandler, DTOs), `infrastructure/` (JPA adapters, ResendEmailServiceAdapter, AuthConfig, RateLimitFilter)
+- `application.yml`, `V1__init.sql` (7 auth tables), `ArchitectureTest.java`, unit + controller slice tests
+- `mvn verify` passes — Checkstyle, JaCoCo ≥70%, all tests green
 
-### Build order for Sprint 1 (strict)
-1. `auth-service` — blocks everything (JWT, households, members)
-2. `api-gateway` — needed to test auth from frontend
-3. `pantry-service` — first functional module
-4. Frontend shell — routing, auth pages, pantry page connected to real API
+### What does NOT exist yet
+- No Java source files in api-gateway, pantry-service, or any other service
+- No React source files
+- No `application.yml` outside auth-service
+- No `ArchitectureTest.java` outside auth-service
 
 ---
 
