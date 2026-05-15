@@ -210,7 +210,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - api-gateway
+      #- api-gateway
       - frontend
     restart: unless-stopped
 
