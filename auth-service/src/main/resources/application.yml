@@ -16,7 +16,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    schemas: auth
 
 server:
   port: 8081

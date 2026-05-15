@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@org.springframework.context.annotation.Profile("prod")
 public class ResendEmailServiceAdapter implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(ResendEmailServiceAdapter.class);
