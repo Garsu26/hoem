@@ -2,9 +2,6 @@
  
 > Household coordination app — pantry, shopping, tasks, weekly menu and energy optimisation in a single connected system.
  
-[![CI - auth-service](https://github.com/your-username/hoem/actions/workflows/ci-auth.yml/badge.svg)](https://github.com/your-username/hoem/actions)
-[![CI - frontend](https://github.com/your-username/hoem/actions/workflows/ci-frontend.yml/badge.svg)](https://github.com/your-username/hoem/actions)
- 
 ---
  
 ## What is HOEM?
