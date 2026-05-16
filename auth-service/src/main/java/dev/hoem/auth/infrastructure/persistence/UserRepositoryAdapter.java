@@ -5,6 +5,7 @@ import dev.hoem.auth.domain.port.UserRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class UserRepositoryAdapter implements UserRepository {
@@ -33,6 +34,13 @@ public class UserRepositoryAdapter implements UserRepository {
     @Override
     public Optional<User> findByEmail(String email) {
         return jpaRepository.findByEmail(email)
+                .map(e -> User.reconstitute(e.getId(), e.getEmail(), e.getPasswordHash(),
+                        e.getName(), e.isVerified(), e.getCreatedAt()));
+    }
+
+    @Override
+    public Optional<User> findById(UUID id) {
+        return jpaRepository.findById(id)
                 .map(e -> User.reconstitute(e.getId(), e.getEmail(), e.getPasswordHash(),
                         e.getName(), e.isVerified(), e.getCreatedAt()));
     }

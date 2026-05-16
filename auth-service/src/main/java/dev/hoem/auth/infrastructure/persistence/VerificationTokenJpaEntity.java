@@ -30,14 +30,18 @@ public class VerificationTokenJpaEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false, length = 20)
+    private String type;
+
     protected VerificationTokenJpaEntity() {
     }
 
-    public VerificationTokenJpaEntity(UUID id, UUID userId, String token, Instant expiresAt) {
+    public VerificationTokenJpaEntity(UUID id, UUID userId, String token, Instant expiresAt, String type) {
         this.id = id;
         this.userId = userId;
         this.token = token;
         this.expiresAt = expiresAt;
+        this.type = type;
         this.createdAt = Instant.now();
     }
 
@@ -55,5 +59,17 @@ public class VerificationTokenJpaEntity {
 
     public Instant getExpiresAt() {
         return expiresAt;
+    }
+
+    public Instant getUsedAt() {
+        return usedAt;
+    }
+
+    public void setUsedAt(Instant usedAt) {
+        this.usedAt = usedAt;
+    }
+
+    public String getType() {
+        return type;
     }
 }

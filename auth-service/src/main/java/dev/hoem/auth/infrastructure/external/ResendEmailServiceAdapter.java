@@ -46,4 +46,27 @@ public class ResendEmailServiceAdapter implements EmailService {
             throw new RuntimeException("Could not send verification email", ex);
         }
     }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String userName, String resetLink) {
+        String html = "<p>Hi " + userName + ",</p>"
+                + "<p>You requested a password reset. Click the link below to set a new password:</p>"
+                + "<p><a href=\"" + resetLink + "\">Reset my password</a></p>"
+                + "<p>This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>";
+
+        CreateEmailOptions options = CreateEmailOptions.builder()
+                .from(fromAddress)
+                .to(toEmail)
+                .subject("Reset your HOEM password")
+                .html(html)
+                .build();
+
+        try {
+            resend.emails().send(options);
+            log.info("Password reset email sent to {}", toEmail);
+        } catch (Exception ex) {
+            log.error("Failed to send password reset email to {}: {}", toEmail, ex.getMessage());
+            throw new RuntimeException("Could not send password reset email", ex);
+        }
+    }
 }

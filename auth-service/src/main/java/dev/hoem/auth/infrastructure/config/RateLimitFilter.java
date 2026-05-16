@@ -23,24 +23,32 @@ public class RateLimitFilter implements Filter {
 
     private static final String REGISTER_PATH = "/api/v1/auth/register";
     private static final String LOGIN_PATH = "/api/v1/auth/login";
+    private static final String RESET_REQUEST_PATH = "/api/v1/auth/password-reset/request";
 
     private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> resetRequestBuckets = new ConcurrentHashMap<>();
 
     private final int registerCapacity;
     private final int registerRefillMinutes;
     private final int loginCapacity;
     private final int loginRefillMinutes;
+    private final int resetCapacity;
+    private final int resetRefillMinutes;
 
     public RateLimitFilter(
             @Value("${app.rate-limit.register.capacity}") int registerCapacity,
             @Value("${app.rate-limit.register.refill-minutes}") int registerRefillMinutes,
             @Value("${app.rate-limit.login.capacity}") int loginCapacity,
-            @Value("${app.rate-limit.login.refill-minutes}") int loginRefillMinutes) {
+            @Value("${app.rate-limit.login.refill-minutes}") int loginRefillMinutes,
+            @Value("${app.rate-limit.password-reset.capacity}") int resetCapacity,
+            @Value("${app.rate-limit.password-reset.refill-minutes}") int resetRefillMinutes) {
         this.registerCapacity = registerCapacity;
         this.registerRefillMinutes = registerRefillMinutes;
         this.loginCapacity = loginCapacity;
         this.loginRefillMinutes = loginRefillMinutes;
+        this.resetCapacity = resetCapacity;
+        this.resetRefillMinutes = resetRefillMinutes;
     }
 
     @Override
@@ -62,6 +70,13 @@ public class RateLimitFilter implements Filter {
             } else if (LOGIN_PATH.equals(uri)) {
                 Bucket bucket = loginBuckets.computeIfAbsent(ip,
                         k -> newBucket(loginCapacity, loginRefillMinutes));
+                if (!bucket.tryConsume(1)) {
+                    rejectWithRateLimit((HttpServletResponse) response);
+                    return;
+                }
+            } else if (RESET_REQUEST_PATH.equals(uri)) {
+                Bucket bucket = resetRequestBuckets.computeIfAbsent(ip,
+                        k -> newBucket(resetCapacity, resetRefillMinutes));
                 if (!bucket.tryConsume(1)) {
                     rejectWithRateLimit((HttpServletResponse) response);
                     return;

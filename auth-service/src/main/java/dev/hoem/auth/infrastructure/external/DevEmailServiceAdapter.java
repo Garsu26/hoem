@@ -21,4 +21,14 @@ public class DevEmailServiceAdapter implements EmailService {
         log.info("  Link: {}", verificationLink);
         log.info("=================================================");
     }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String userName, String resetLink) {
+        log.info("=================================================");
+        log.info("  DEV MODE — password reset email not sent");
+        log.info("  To:   {}", toEmail);
+        log.info("  Name: {}", userName);
+        log.info("  Link: {}", resetLink);
+        log.info("=================================================");
+    }
 }

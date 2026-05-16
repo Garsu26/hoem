@@ -51,6 +51,10 @@ public class User {
         return verified;
     }
 
+    public User withUpdatedPassword(String newPasswordHash) {
+        return new User(this.id, this.email, newPasswordHash, this.name, this.verified, this.createdAt);
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

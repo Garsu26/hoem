@@ -24,11 +24,16 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:3000}
   verification-token:
     ttl-hours: 24
+  password-reset-token:
+    ttl-hours: 1
   rate-limit:
     register:
       capacity: 10
       refill-minutes: 1
     login:
+      capacity: 5
+      refill-minutes: 1
+    password-reset:
       capacity: 5
       refill-minutes: 1
 
