@@ -2,6 +2,8 @@ package dev.hoem.auth.controller;
 
 import dev.hoem.auth.controller.dto.ErrorResponse;
 import dev.hoem.auth.domain.exception.EmailAlreadyExistsException;
+import dev.hoem.auth.domain.exception.EmailNotVerifiedException;
+import dev.hoem.auth.domain.exception.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,5 +32,17 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleEmailConflict(EmailAlreadyExistsException ex) {
         return new ErrorResponse("EMAIL_ALREADY_EXISTS", ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleInvalidCredentials(InvalidCredentialsException ex) {
+        return new ErrorResponse("INVALID_CREDENTIALS", ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleEmailNotVerified(EmailNotVerifiedException ex) {
+        return new ErrorResponse("EMAIL_NOT_VERIFIED", ex.getMessage());
     }
 }
