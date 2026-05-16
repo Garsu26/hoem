@@ -83,6 +83,20 @@ All documentation lives in the [`docs/`](./docs/) folder:
 | [ADRs](./docs/09_adr.md) | Architecture Decision Records |
 | [Data Model](./docs/10_data_model.md) | PostgreSQL schemas and Flyway migrations |
  
+## Local database inspection (pgAdmin)
+
+pgAdmin is included as a dev-only Docker service.
+
+| | |
+|---|---|
+| URL | http://localhost:5050 |
+| Email | value of `PGADMIN_DEFAULT_EMAIL` in your `.env` |
+| Password | value of `PGADMIN_DEFAULT_PASSWORD` in your `.env` |
+
+The **HOEM PostgreSQL** server is pre-configured automatically (`postgresql:5432`, database `hoem`). On first connection pgAdmin will ask for the database password — use the value of `DB_PASSWORD` from your `.env`.
+
+> pgAdmin is **not** exposed via Cloudflare Tunnel and is only reachable from localhost.
+
 ## Contributing
  
 See [CONTRIBUTING.md](.claude/CONTRIBUTING.md) for commit conventions, branch strategy and PR process.
