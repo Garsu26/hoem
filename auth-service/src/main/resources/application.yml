@@ -34,7 +34,7 @@ app:
 
 resend:
   api-key: ${RESEND_API_KEY}
-  from-address: noreply@hoem.app
+  from-address: noreply@hoemapp.com
 
 jwt:
   secret: ${JWT_SECRET}
