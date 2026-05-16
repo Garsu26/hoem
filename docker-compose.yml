@@ -63,6 +63,8 @@ services:
       context: ./auth-service
       dockerfile: Dockerfile
     container_name: hoem-auth
+    ports:
+      - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/hoem?currentSchema=auth
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
@@ -70,6 +72,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
       APP_BASE_URL: ${APP_BASE_URL}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       JAVA_OPTS: -Xmx128m -Xms64m
     depends_on:
       postgresql:

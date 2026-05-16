@@ -22,16 +22,25 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitFilter implements Filter {
 
     private static final String REGISTER_PATH = "/api/v1/auth/register";
+    private static final String LOGIN_PATH = "/api/v1/auth/login";
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
-    private final int capacity;
-    private final int refillMinutes;
+    private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+
+    private final int registerCapacity;
+    private final int registerRefillMinutes;
+    private final int loginCapacity;
+    private final int loginRefillMinutes;
 
     public RateLimitFilter(
-            @Value("${app.rate-limit.register.capacity}") int capacity,
-            @Value("${app.rate-limit.register.refill-minutes}") int refillMinutes) {
-        this.capacity = capacity;
-        this.refillMinutes = refillMinutes;
+            @Value("${app.rate-limit.register.capacity}") int registerCapacity,
+            @Value("${app.rate-limit.register.refill-minutes}") int registerRefillMinutes,
+            @Value("${app.rate-limit.login.capacity}") int loginCapacity,
+            @Value("${app.rate-limit.login.refill-minutes}") int loginRefillMinutes) {
+        this.registerCapacity = registerCapacity;
+        this.registerRefillMinutes = registerRefillMinutes;
+        this.loginCapacity = loginCapacity;
+        this.loginRefillMinutes = loginRefillMinutes;
     }
 
     @Override
@@ -39,28 +48,41 @@ public class RateLimitFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
 
-        if ("POST".equalsIgnoreCase(httpRequest.getMethod())
-                && REGISTER_PATH.equals(httpRequest.getRequestURI())) {
+        if ("POST".equalsIgnoreCase(httpRequest.getMethod())) {
+            String uri = httpRequest.getRequestURI();
             String ip = resolveClientIp(httpRequest);
-            Bucket bucket = buckets.computeIfAbsent(ip, this::newBucket);
 
-            if (!bucket.tryConsume(1)) {
-                HttpServletResponse httpResponse = (HttpServletResponse) response;
-                httpResponse.setStatus(429);
-                httpResponse.setContentType("application/json");
-                httpResponse.getWriter().write(
-                        "{\"code\":\"RATE_LIMIT_EXCEEDED\",\"message\":\"Too many requests. Try again later.\"}");
-                return;
+            if (REGISTER_PATH.equals(uri)) {
+                Bucket bucket = registerBuckets.computeIfAbsent(ip,
+                        k -> newBucket(registerCapacity, registerRefillMinutes));
+                if (!bucket.tryConsume(1)) {
+                    rejectWithRateLimit((HttpServletResponse) response);
+                    return;
+                }
+            } else if (LOGIN_PATH.equals(uri)) {
+                Bucket bucket = loginBuckets.computeIfAbsent(ip,
+                        k -> newBucket(loginCapacity, loginRefillMinutes));
+                if (!bucket.tryConsume(1)) {
+                    rejectWithRateLimit((HttpServletResponse) response);
+                    return;
+                }
             }
         }
 
         chain.doFilter(request, response);
     }
 
-    private Bucket newBucket(String ip) {
-        Bandwidth limit = Bandwidth.classic(
-                capacity, Refill.greedy(capacity, Duration.ofMinutes(refillMinutes)));
+    private Bucket newBucket(int capacity, int refillMinutes) {
+        Bandwidth limit = Bandwidth.classic(capacity,
+                Refill.greedy(capacity, Duration.ofMinutes(refillMinutes)));
         return Bucket.builder().addLimit(limit).build();
+    }
+
+    private void rejectWithRateLimit(HttpServletResponse response) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        response.getWriter().write(
+                "{\"code\":\"RATE_LIMIT_EXCEEDED\",\"message\":\"Too many requests. Try again later.\"}");
     }
 
     private String resolveClientIp(HttpServletRequest request) {

@@ -28,6 +28,9 @@ app:
     register:
       capacity: 10
       refill-minutes: 1
+    login:
+      capacity: 5
+      refill-minutes: 1
 
 resend:
   api-key: ${RESEND_API_KEY}
