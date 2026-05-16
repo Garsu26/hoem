@@ -4,6 +4,7 @@ import dev.hoem.auth.controller.dto.ErrorResponse;
 import dev.hoem.auth.domain.exception.EmailAlreadyExistsException;
 import dev.hoem.auth.domain.exception.EmailNotVerifiedException;
 import dev.hoem.auth.domain.exception.InvalidCredentialsException;
+import dev.hoem.auth.domain.exception.InvalidOrExpiredTokenException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -44,5 +45,11 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handleEmailNotVerified(EmailNotVerifiedException ex) {
         return new ErrorResponse("EMAIL_NOT_VERIFIED", ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidOrExpiredTokenException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidOrExpiredToken(InvalidOrExpiredTokenException ex) {
+        return new ErrorResponse("INVALID_OR_EXPIRED_TOKEN", ex.getMessage());
     }
 }
